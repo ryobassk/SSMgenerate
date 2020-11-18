@@ -25,8 +25,8 @@ if __name__ == '__main__':
     np.random.seed(123)
     torch.manual_seed(123)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    BATCH_SIZE = 100
-    EPOCH = 2
+    BATCH_SIZE = 16
+    EPOCH = 700
     
     '''1. データの準備'''
     #単語変換関数
@@ -153,7 +153,7 @@ if __name__ == '__main__':
             if phase=='test':
                 val_allloss.append(sum_loss / len(dataloader[phase]))
             #モデルのセーブ
-            if (epoch+1) % 1 == 0:
+            if ((epoch+1) % 50 == 0 and epoch<350) or ((epoch+1)%100 ==0):
                 torch.save(model.state_dict(), './log/model/'+str(now.month)+str(now.day)
                            +'model_epoch'+str(epoch+1))
 
