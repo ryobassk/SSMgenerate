@@ -42,15 +42,66 @@ class DataLoader(object):
             raise StopIteration()
         x, t = zip(*self.dataset[self._idx:(self._idx + self.batch_size)])
         (x, t) = sort(x, t)
-        x = [torch.LongTensor(X) for X in x]
-        t = [torch.LongTensor(T) for T in t]
-        x = pad_sequence(x)
-        t = pad_sequence(t)
+        x1,x2,x3=[],[],[]
+        x1_sub,x2_sub,x3_sub=[],[],[]
+        for i in range(len(x)):
+            for k in range(len(x[i])):
+                x1_sub.append(x[i][k][0])
+                x2_sub.append(x[i][k][1])
+                x3_sub.append(x[i][k][2])
+            x1.append(x1_sub)
+            x2.append(x2_sub)
+            x3.append(x3_sub)
+            x1_sub,x2_sub,x3_sub=[],[],[]
+        t1,t2,t3=[],[],[]
+        t1_sub,t2_sub,t3_sub=[],[],[]
+        t_chord,t_num =[],[]
+        for i in range(len(t)):
+            for k in range(len(t[i][0])):
+                t1_sub.append(t[i][0][k][0])
+                t2_sub.append(t[i][0][k][1])
+                t3_sub.append(t[i][0][k][2])
+            t1.append(t1_sub)
+            t2.append(t2_sub)
+            t3.append(t3_sub)
+            t1_sub,t2_sub,t3_sub=[],[],[]
+            t_chord.append(t[i][1])
+            t_num.append(t[i][2])
+        
+        x1 = [torch.LongTensor(X) for X in x1]
+        x2 = [torch.LongTensor(X) for X in x2]
+        x3 = [torch.LongTensor(X) for X in x3]
+        
+        t1 = [torch.LongTensor(T) for T in t1]
+        t2 = [torch.LongTensor(T) for T in t2]
+        t3 = [torch.LongTensor(T) for T in t3]
+        
+        t_chord = [torch.LongTensor(T) for T in t_chord]
+        t_num = [torch.LongTensor(T) for T in t_num]
+        
+        x1 = pad_sequence(x1)
+        t1 = pad_sequence(t1)
+        x2 = pad_sequence(x2)
+        t2 = pad_sequence(t2)
+        x3 = pad_sequence(x3)
+        t3 = pad_sequence(t3)
+        t_chord = pad_sequence(t_chord)
+        t_num = pad_sequence(t_num)
+        
         if self.batch_first:
-            x = x.t()
-            t = t.t()
-        self._idx += self.batch_size     
-        return x.to(self.device), t.to(self.device)
+            x1 = x1.t()
+            t1 = t1.t()
+            x2 = x2.t()
+            t2 = t2.t()
+            x3 = x3.t()
+            t3 = t3.t()
+            t_chord = t_chord.t()
+            t_num = t_num.t()
+            
+        self._idx += self.batch_size
+        return (x1.to(self.device), x2.to(self.device), x3.to(self.device),
+                t_chord.to(self.device), t_num.to(self.device),
+                t1.to(self.device), t2.to(self.device), t3.to(self.device))
 
     def _reset(self):
         if self.shuffle:

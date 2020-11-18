@@ -232,27 +232,30 @@ for i in range(len(chord_all)):#range(0,1):#
 
 ##コーパスの作成
 call_all = []
-#音を一小節でまとめる
+
+#音を泊ごとででまとめる
+#まとめる拍数のTICKを設定
+haku_set=960
 for i in range(len(mero_chord_all)):
     call_info = []
     k=0
+    haku_count=0
     check = True
     while len(mero_chord_all[i]) > k:
         call_syousetsu=[]
-        now_syousetsu=mero_chord_all[i][k][2]
-        while now_syousetsu+1 > mero_chord_all[i][k][2]:
+        now_hakusuu = haku_count*haku_set
+        while now_hakusuu + haku_set > mero_chord_all[i][k][3]:
             call_syousetsu.append(mero_chord_all[i][k])
-            #print(k)
-            #print(mero_chord_all[i][k])
             k+=1
             if k ==len(mero_chord_all[i]):
                 break
         if check:
             call_info.append(call_syousetsu)
+            haku_count+=1
     call_all.append(call_info)
 
-syousetsu_num = 4 #まとめる小節数
-slide_num = 1 #スライドする小節数
+syousetsu_num = 8 #まとめる単位
+slide_num = 1 #スライドする単位
 #[曲][小節の塊][音]
 call_text_kyoku = []
 resp_text_kyoku = []
@@ -284,8 +287,12 @@ for i in range(len(call_all)):
 #出力
 f_call = './dataset/'+str(now.month)+'_'+str(now.day)+'Bb_allcall_m4s1.txt'
 f_resp = './dataset/'+str(now.month)+'_'+str(now.day)+'Bb_allresp_m4s1.txt'
+f_chord = './dataset/'+str(now.month)+'_'+str(now.day)+'Bb_chord_m4s1.txt'
+f_num = './dataset/'+str(now.month)+'_'+str(now.day)+'Bb_num_m4s1.txt'
 fo_call = open(f_call, "w")
 fo_resp = open(f_resp, "w")
+fo_chord  = open(f_chord , "w")
+fo_num = open(f_num, "w")
  
 for i in range(len(call_text_kyoku)):
     for k in range(len(call_text_kyoku[i])):
@@ -294,14 +301,32 @@ for i in range(len(call_text_kyoku)):
                           +str(call_text_kyoku[i][k][l][1])+'_'#長さ
                           +str(call_text_kyoku[i][k][l][4])+'_'#コードのルート音
                           +str(call_text_kyoku[i][k][l][5])+' '#コードの構成音
-                          )  
+                          )
+        chord_len=0
+        chord_count=1
+        num_count=0
+        fo_chord.write(str(resp_text_kyoku[i][k][0][4])+'_'#コードのルート音
+                      +str(resp_text_kyoku[i][k][0][5])+' '#コードの構成音
+                      )
         for n in range(len(resp_text_kyoku[i][k])):
             fo_resp.write(str(resp_text_kyoku[i][k][n][0])+'_'#音階
                           +str(resp_text_kyoku[i][k][n][1])+'_'#長さ
                           +str(resp_text_kyoku[i][k][n][4])+'_'#コードのルート音
                           +str(resp_text_kyoku[i][k][n][5])+' '#コードの構成音
                           )
+            chord_len += resp_text_kyoku[i][k][n][1]
+            if chord_len >= chord_count*980:
+                fo_chord.write(str(resp_text_kyoku[i][k][n][4])+'_'#コードのルート音
+                      +str(resp_text_kyoku[i][k][n][5])+' '#コードの構成音
+                      )
+                fo_num.write(str(num_count)+' ')
+                num_count=0
+                chord_count+=1
+            num_count+=1
+            
         fo_call.write('\n')
         fo_resp.write('\n')
+        fo_chord.write('\n')
+        fo_num.write(str(num_count)+'\n')
 fo_call.close()
 fo_resp.close()
