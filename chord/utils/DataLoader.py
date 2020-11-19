@@ -97,6 +97,7 @@ class DataLoader(object):
             t3 = t3.t()
             t_chord = t_chord.t()
             t_num = t_num.t()
+            
         self._idx += self.batch_size
         return (x1.to(self.device), x2.to(self.device), x3.to(self.device),
                 t_chord.to(self.device), t_num.to(self.device),

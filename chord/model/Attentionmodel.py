@@ -57,10 +57,9 @@ class Decoder(nn.Module):
         nn.init.orthogonal_(self.lstm.weight_hh_l0)
         nn.init.xavier_normal_(self.out.weight)
 
-    def forward(self, x, hs, states, source=None, enc=None):
+    def forward(self, x, hs, states, source=None):
         x = self.embedding(x)
         ht, states = self.lstm(x, states)
         ht = self.attn(ht, hs, source=source)
-        y = self.out(ht)        
-        
-        return y, states, ht
+        y = self.out(ht)
+        return y, states

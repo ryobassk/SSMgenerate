@@ -37,28 +37,71 @@ class EncoderDecoder(nn.Module):
                 t_note=None, t_len=None, t_chord=None, 
                 use_teacher_forcing=False):
         batch_size = x_note.size(1)
-        if chord is not None:
-            len_target_sequences = chord.size(0)
-        else:
-            len_target_sequences = 8
         hs, states = self.encoder(x_note, x_len, x_chord)
         y = torch.ones((1, batch_size),
                        dtype=torch.long,
                        device=self.device)
-        output = torch.zeros((len_target_sequences,
-                              batch_size,
-                              self.output_dim3),
-                             device=self.device)
-        chord_states = torch.zeros((len_target_sequences,
-                                    batch_size,
-                                    self.output_dim3),
-                                   device=self.device)
-        for t in range(len_target_sequences):
-            out, states = self.decoder3(y, hs, states, source=x_note)
-            output[t] = out
-            if use_teacher_forcing and chord is not None:
-                y = chord[t].unsqueeze(0)
+        if phase == 'chord':
+            len_target_sequences = 8
+            output = torch.zeros((len_target_sequences,
+                                  batch_size,
+                                  self.output_dim3),
+                                 device=self.device)
+            for t in range(len_target_sequences):
+                out, states, _ = self.decoder3(y, hs, states, source=x_note)
+                output[t] = out
+                if use_teacher_forcing and chord is not None:
+                    y = chord[t].unsqueeze(0)
+                else:
+                    y = out.max(-1)[1]
+            return output
+        
+        if phase == 'note':
+            if t_note is not None:
+                len_target_sequences = t_note.size(0)
             else:
-                y = out.max(-1)[1]
-        return output
+                len_target_sequences = self.maxlen
+                
+            y = torch.ones((1, batch_size),
+                       dtype=torch.long,
+                       device=self.device)
+            output = torch.zeros((len_target_sequences,
+                                  batch_size,
+                                  self.output_dim1),
+                                 device=self.device)
+            _, states, hs_dec1 = self.decoder3(chord, hs, states, source=x_note)
+            for t in range(len_target_sequences):                
+                out, states, _ = self.decoder1(y, hs_dec1, states, source=chord)
+                output[t] = out
+                if use_teacher_forcing and t_note is not None:
+                    y = t_note[t].unsqueeze(0)
+                else:
+                    y = out.max(-1)[1]
+            return output
+        
+        if phase == 'len':
+            _, states, hs_dec1 = self.decoder3(chord, hs, states, source=x_note)
+            _, states, hs_dec2 = self.decoder1(t_note, hs_dec1, states, source=chord)
+            if t_len is not None:
+                len_target_sequences = t_len.size(0)
+            else:
+                len_target_sequences = self.maxlen
+            y = torch.ones((1, batch_size),
+                       dtype=torch.long,
+                       device=self.device)
+            output = torch.zeros((len_target_sequences,
+                                  batch_size,
+                                  self.output_dim2),
+                                 device=self.device)
+            for t in range(len_target_sequences):
+                out, states, _ = self.decoder2(y, hs_dec2, states, source=t_note)
+                output[t] = out
+                if use_teacher_forcing and t_len is not None:
+                    y = t_len[t].unsqueeze(0)
+                else:
+                    y = out.max(-1)[1]
+            return output
+            
+            
+    
             

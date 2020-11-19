@@ -27,10 +27,6 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     BATCH_SIZE = 16
     EPOCH = 700
-    EPOCH_SET = {'chord' : 100,
-                 'note' : 100,
-                 'len' : 100
-                 }
     
     '''1. データの準備'''
     #単語変換関数
@@ -59,7 +55,7 @@ if __name__ == '__main__':
                                     de_num_path,
                                     eos=True)
     #テストデータと訓練データに分ける
-    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=2, shuffle=True)
+    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=0.1, shuffle=True)
     #データをバッチ化する（tensor）
     t = DataLoader((x_val, t_val),
                    batch_size=BATCH_SIZE,
@@ -103,34 +99,25 @@ if __name__ == '__main__':
                            output_dim_note, output_dim_len, output_dim_chord,
                            num_layers=2,
                            device=device).to(device)
+
     '''3. モデルの学習・評価'''
     #損失関数　ignore_index=0　マスク処理
     criterion = nn.CrossEntropyLoss(reduction='mean', ignore_index=0)
     #勾配法
-    enc_optimizer = optimizers.Adam(model.encoder.parameters(),
+    model_optimizer = optimizers.Adam(model.parameters(),
                                       lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True)
-    dec1_optimizer = optimizers.Adam(model.decoder1.parameters(),
-                                      lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True)
-    dec2_optimizer = optimizers.Adam(model.decoder2.parameters(),
-                                      lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True)
-    dec3_optimizer = optimizers.Adam(model.decoder2.parameters(),
-                                      lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True) 
+                                      betas=(0.9, 0.999), amsgrad=True)   
     #学習
     train_allloss=[]
     val_allloss=[]
-    for learning_phase in ['chord', 'note', 'len']:
-        EPOCH = EPOCH_SET[learning_phase]
-        for epoch in range(EPOCH):
-            for phase in ['train','test']:
+    for epoch in range(EPOCH):
+        for phase in ['train','test']:
+            for learning_phase in ['chord']:
                 sum_loss = 0.
                 corrects = 0.
                 idx = 0
                 with tqdm(total=len(dataloader[phase]),unit="batch") as pbar:
-                    pbar.set_description(f"Epoch[{epoch+1}/{EPOCH}]({learning_phase},{phase})")
+                    pbar.set_description(f"Epoch[{epoch+1}/{EPOCH}]({phase})")
                     for (x_note, x_len, x_chord, 
                          chord, t_num, 
                          t_note, t_len, t_chord) in dataloader[phase]:
@@ -140,73 +127,49 @@ if __name__ == '__main__':
                             teacher_forcing_rate=0.5
                             use_teacher_forcing = (random.random() < teacher_forcing_rate)
                             model.train()
-                            preds = model(learning_phase, x_note, x_len, x_chord, 
-                                          chord, t_num, t_note, t_len, t_chord,
+                            preds = model(learning_phase, x_note, x_len, x_chord, chord,
                                           use_teacher_forcing=use_teacher_forcing)
                         if phase=='test':
                             model.eval()
-                            preds = model(learning_phase, x_note, x_len, x_chord, 
-                                          chord, t_num, t_note, t_len, t_chord,
+                            preds = model(learning_phase, x_note, x_len, x_chord, chord,
                                           use_teacher_forcing=False)
                         
-                        if learning_phase=='chord':
-                            loss = criterion(preds.reshape(-1, preds.size(-1)),
+                        loss = criterion(preds.reshape(-1, preds.size(-1)),
                                          chord.reshape(-1))
-                            sum_loss += loss.item()
-                            idx += 1
-                            ave_loss = sum_loss / idx
-                            if phase=='train':
-                                enc_optimizer.zero_grad(), dec3_optimizer.zero_grad()
-                                loss.backward()
-                                enc_optimizer.step(), dec3_optimizer.step()
+                        sum_loss += loss.item()
+                        idx += 1
+                        ave_loss = sum_loss / idx
                         
-                        if learning_phase=='note':
-                            loss = criterion(preds.reshape(-1, preds.size(-1)),
-                                             t_note.reshape(-1))
-                            sum_loss += loss.item()
-                            idx += 1
-                            ave_loss = sum_loss / idx
-                            if phase=='train':
-                                dec1_optimizer.zero_grad()
-                                loss.backward()
-                                dec1_optimizer.step()
-                        
-                        if learning_phase=='len':
-                            loss = criterion(preds.reshape(-1, preds.size(-1)),
-                                             t_len.reshape(-1))
-                            sum_loss += loss.item()
-                            idx += 1
-                            ave_loss = sum_loss / idx
-                            if phase=='train':
-                                dec2_optimizer.zero_grad()
-                                loss.backward()
-                                dec2_optimizer.step()
+                        if phase=='train':
+                            model_optimizer.zero_grad()
+                            loss.backward()
+                            model_optimizer.step()
                             
                         pbar.set_postfix({"loss":ave_loss})
                         pbar.update(1)
                         
-                if phase=='train':
-                    train_allloss.append(sum_loss / len(dataloader[phase]))
-                if phase=='test':
-                    val_allloss.append(sum_loss / len(dataloader[phase]))
+            if phase=='train':
+                train_allloss.append(sum_loss / len(dataloader[phase]))
+            if phase=='test':
+                val_allloss.append(sum_loss / len(dataloader[phase]))
             #モデルのセーブ
             if ((epoch+1) % 50 == 0 and epoch<350) or ((epoch+1)%100 ==0):
                 torch.save(model.state_dict(), './log/model/'+str(now.month)+str(now.day)
                            +'model_epoch'+str(epoch+1))
 
-        #result
-        plt.plot(range(1,EPOCH+1), train_allloss, label='Train')
-        plt.plot(range(1,EPOCH+1), val_allloss, label='Test')
-        plt.ylabel("CROSS_ENTROPY_ERROR")
-        plt.xlabel("EPOCH")
-        plt.title("Loss")
-        plt.legend()
-        plt.savefig('./log/'+str(now.month)+str(now.day)+str(learning_phase)+'loss.png')
-        plt.clf()
-        import csv
-        with open('./log/'+str(now.month)+str(now.day)+str(learning_phase)+'loss.csv', "w") as f:
-            writer = csv.writer(f, lineterminator='\n')
-            writer.writerow(['Train'])
-            writer.writerow(train_allloss)
-            writer.writerow(['Test'])
-            writer.writerow(val_allloss)
+    #result
+    plt.plot(range(1,EPOCH+1), train_allloss, label='Train')
+    plt.plot(range(1,EPOCH+1), val_allloss, label='Test')
+    plt.ylabel("CROSS_ENTROPY_ERROR")
+    plt.xlabel("EPOCH")
+    plt.title("Loss")
+    plt.legend()
+    plt.savefig('./log/'+str(now.month)+str(now.day)+'loss.png')
+    plt.clf()
+    import csv
+    with open('./log/'+str(now.month)+str(now.day)+'loss.csv', "w") as f:
+        writer = csv.writer(f, lineterminator='\n')
+        writer.writerow(['Train'])
+        writer.writerow(train_allloss)
+        writer.writerow(['Test'])
+        writer.writerow(val_allloss)
