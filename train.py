@@ -55,7 +55,7 @@ if __name__ == '__main__':
                                     de_num_path,
                                     eos=True)
     #テストデータと訓練データに分ける
-    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=2, shuffle=True)
+    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=0.1, shuffle=True)
     #データをバッチ化する（tensor）
     t = DataLoader((x_val, t_val),
                    batch_size=BATCH_SIZE,
