@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import datetime
 now = datetime.datetime.now()
 
+
 class Encoder(nn.Module):
     def __init__(self,
                  input_dim,
@@ -77,16 +78,16 @@ if __name__ == '__main__':
     '''
     #単語変換関数
     dict_vocab = Vocab()
-    
+
     #学習データのパス
-    dict_path = 'C:/Users/Ryo Ogasawara/OneDrive/lab/0924made/data/dataset/10_2/10_2callresp.txt'    
+    dict_path = 'C:/Users/Ryo Ogasawara/OneDrive/lab/0924made/data/dataset/10_2/10_2callresp.txt'
     en_train_path = 'C:/Users/Ryo Ogasawara/OneDrive/lab/0924made/data/dataset/10_2/10_2call.txt'
     de_train_path = 'C:/Users/Ryo Ogasawara/OneDrive/lab/0924made/data/dataset/10_2/10_2resp.txt'
 
 
     #データからID辞書を作成
     dict_vocab.fit(dict_path)
-    
+
     #データをIDに変換
     x_data = dict_vocab.transform(en_train_path)
     t_data = dict_vocab.transform(de_train_path, eos=True)
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     #辞書の長さ
     depth_x = len(dict_vocab.i2w)
     depth_t = len(dict_vocab.i2w)
-    
+
     input_dim = depth_x #入力層
     hidden_dim = 128 #中間層
     output_dim = depth_t #出力層
@@ -153,8 +154,8 @@ if __name__ == '__main__':
     dec_optimizer = optimizers.Adam(dec.parameters(),
                                 lr=0.001,
                                 betas=(0.9, 0.999), amsgrad=True)
-    
-    
+
+
     def Model_enc_dec(source, target=None, use_teacher_forcing=False):
         batch_size = source.size(1)
         if target is not None:
@@ -188,25 +189,25 @@ if __name__ == '__main__':
     def train_step(xdata, tdata,
                    teacher_forcing_rate=0.5):
         use_teacher_forcing = (random.random() < teacher_forcing_rate)
-        
+
         enc.train(), dec.train()
         preds = Model_enc_dec(xdata, tdata,
                               use_teacher_forcing=use_teacher_forcing)
         loss = compute_loss(tdata.reshape(-1),
                             preds.reshape(-1, preds.size(-1)))
-        
+
         enc_optimizer.zero_grad(), dec_optimizer.zero_grad()
         loss.backward()
         enc_optimizer.step(), dec_optimizer.step()
-        
+
         return loss, preds
 
     #1epochあたりのモデルの評価（検証データで）
     def val_step(xdata, tdata):
         enc.eval(), dec.eval()
-        
+
         preds = Model_enc_dec(xdata, tdata ,
-                              use_teacher_forcing=False) 
+                              use_teacher_forcing=False)
         loss = compute_loss(tdata.reshape(-1),
                             preds.reshape(-1, preds.size(-1)))
 
@@ -215,9 +216,9 @@ if __name__ == '__main__':
     #テストデータの予測
     def test_step(xdata):
         enc.eval(), dec.eval()
-        
+
         preds = Model_enc_dec(xdata,
-                              use_teacher_forcing=False) 
+                              use_teacher_forcing=False)
         return preds
 
     epochs = 700
@@ -234,8 +235,8 @@ if __name__ == '__main__':
         for (x, t) in train_dataloader:
             loss, _ = train_step(x, t)
             train_loss += loss.item()
-            
-        
+
+
         #lossの計算（訓練データ）
         train_loss /= len(train_dataloader)
 
@@ -245,10 +246,10 @@ if __name__ == '__main__':
             val_loss += loss.item()
 
         val_loss /= len(val_dataloader)
-        
+
         train_allloss.append(train_loss)
         val_allloss.append(val_loss)
-        
+
         print('loss: {:.3f}, val_loss: {:.3}'.format(
             train_loss,
             val_loss
@@ -260,7 +261,7 @@ if __name__ == '__main__':
                        +'encoder_'+str(epoch+1))
             torch.save(dec.state_dict(), './'+str(now.month)+str(now.day)
                        +'decoder_'+str(epoch+1))
-            
+
         #テストデータでの検証
         for idx, (x, t) in enumerate(test_dataloader):
             preds = test_step(x)
