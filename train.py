@@ -26,10 +26,9 @@ if __name__ == '__main__':
     torch.manual_seed(123)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     BATCH_SIZE = 16
-    EPOCH = 700
-    EPOCH_SET = {'chord' : 100,
-                 'note' : 100,
-                 'len' : 100
+    EPOCH_SET = {'chord' : 50,
+                 'note' : 50,
+                 'len' : 300
                  }
     
     '''1. データの準備'''
@@ -59,7 +58,7 @@ if __name__ == '__main__':
                                     de_num_path,
                                     eos=True)
     #テストデータと訓練データに分ける
-    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=2, shuffle=True)
+    x_train, x_val, t_train, t_val = train_test_split(x_data, t_data, test_size=0.1, shuffle=True)
     #データをバッチ化する（tensor）
     t = DataLoader((x_val, t_val),
                    batch_size=BATCH_SIZE,
@@ -116,15 +115,19 @@ if __name__ == '__main__':
     dec2_optimizer = optimizers.Adam(model.decoder2.parameters(),
                                       lr=0.001,
                                       betas=(0.9, 0.999), amsgrad=True)
-    dec3_optimizer = optimizers.Adam(model.decoder2.parameters(),
+    dec3_optimizer = optimizers.Adam(model.decoder3.parameters(),
                                       lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True) 
+                                      betas=(0.9, 0.999), amsgrad=True)
+    scheduler = torch.optim.lr_scheduler.StepLR(dec2_optimizer, step_size=1, gamma=0.95)
+    path_model = './log/model/1119note_model_epoch50'
+    model.load_state_dict(torch.load(path_model, map_location=torch.device(device)))
     #学習
     train_allloss=[]
     val_allloss=[]
-    for learning_phase in ['chord', 'note', 'len']:
+    for learning_phase in ['len']:#['chord', 'note', 'len']:
         EPOCH = EPOCH_SET[learning_phase]
         for epoch in range(EPOCH):
+            #print('lr: {}'.format(scheduler.get_lr()[0]))
             for phase in ['train','test']:
                 sum_loss = 0.
                 corrects = 0.
@@ -139,7 +142,19 @@ if __name__ == '__main__':
                             import random
                             teacher_forcing_rate=0.5
                             use_teacher_forcing = (random.random() < teacher_forcing_rate)
-                            model.train()
+                            if learning_phase=='chord':
+                                model.encoder.train()
+                                model.decoder3.train()
+                                
+                            if learning_phase=='note':
+                                model.decoder1.train()
+                                model.encoder.train()
+                                model.decoder3.train()
+                                
+                            if learning_phase=='len':
+                                #model.decoder2.train()
+                                model.train()
+                                
                             preds = model(learning_phase, x_note, x_len, x_chord, 
                                           chord, t_num, t_note, t_len, t_chord,
                                           use_teacher_forcing=use_teacher_forcing)
@@ -192,7 +207,8 @@ if __name__ == '__main__':
             #モデルのセーブ
             if ((epoch+1) % 50 == 0 and epoch<350) or ((epoch+1)%100 ==0):
                 torch.save(model.state_dict(), './log/model/'+str(now.month)+str(now.day)
-                           +'model_epoch'+str(epoch+1))
+                           +str(learning_phase)+'_model_epoch'+str(epoch+1))
+            scheduler.step()
 
         #result
         plt.plot(range(1,EPOCH+1), train_allloss, label='Train')
