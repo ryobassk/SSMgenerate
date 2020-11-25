@@ -69,9 +69,9 @@ class EncoderDecoder(nn.Module):
                                   batch_size,
                                   self.output_dim1),
                                  device=self.device)
-            _, states, hs_dec1 = self.decoder3(chord, hs, states, source=x_note)
+            _, states3, hs_dec3 = self.decoder3(chord, hs, states, source=x_note)
             for t in range(len_target_sequences):                
-                out, states, _ = self.decoder1(y, hs_dec1, states, source=chord)
+                out, states, _ = self.decoder1(y, hs_dec3, states, source=chord)
                 output[t] = out
                 if use_teacher_forcing and t_note is not None:
                     y = t_note[t].unsqueeze(0)
@@ -80,8 +80,8 @@ class EncoderDecoder(nn.Module):
             return output
         
         if phase == 'len':
-            _, states, hs_dec1 = self.decoder3(chord, hs, states, source=x_note)
-            _, states, hs_dec2 = self.decoder1(t_note, hs_dec1, states, source=chord)
+            _, states3, hs_dec3 = self.decoder3(chord, hs, states, source=x_note)
+            _, states1, hs_dec1 = self.decoder1(t_note, hs_dec3, states, source=chord)
             if t_len is not None:
                 len_target_sequences = t_len.size(0)
             else:
@@ -94,7 +94,7 @@ class EncoderDecoder(nn.Module):
                                   self.output_dim2),
                                  device=self.device)
             for t in range(len_target_sequences):
-                out, states, _ = self.decoder2(y, hs_dec2, states, source=t_note)
+                out, states, _ = self.decoder2(y, hs_dec1, states, source=t_note)
                 output[t] = out
                 if use_teacher_forcing and t_len is not None:
                     y = t_len[t].unsqueeze(0)
