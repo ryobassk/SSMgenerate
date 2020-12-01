@@ -32,7 +32,7 @@ class Encoder(nn.Module):
         x3 = self.embedding3(x3)
 
         x123 = torch.cat((x1, x2, x3),2)
-        x123 = pack_padded_sequence(x123, len_source_sequences)
+        x123 = pack_padded_sequence(x123, len_source_sequences.cpu())
         
         h, states = self.lstm(x123)
         h, _ = pad_packed_sequence(h)
